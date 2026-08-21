@@ -1,0 +1,51 @@
+id: bug-1842-profile-upload
+title: "Profile image uploads are failing for some users"
+company: Nexus
+severity: Medium
+difficulty: intern        # intern | junior | engineer | senior | staff
+language: python
+skills: [input-validation, defensive-programming, regression-testing]
+learning_objectives:
+  - Trace a bug report to a specific commit using git log/diff
+  - Recognize a case-sensitivity defect in string validation
+  - Write a regression test that would have caught it
+
+ticket:
+  reporter: "Customer Support"
+  body: |
+    Several users are reporting that their profile pictures disappear
+    after uploading them. Can you investigate?
+  slack_thread:
+    - author: "Priya Nandakumar (Support)"
+      body: "Getting a few reports of vanished profile photos, mostly iPhone users."
+    - author: "Marcus Rivera (Staff Eng)"
+      body: "We shipped a validation refactor on user-service last week, worth a look."
+
+repo_path: repo/           # relative to scenario dir
+entry_service: user-service
+visible_test_command: "pytest tests/"
+
+root_cause: >
+  The upload validation added in commit 9905c39 checks file extensions with a
+  case-sensitive comparison, so files like IMG_0421.JPG (uppercase, common from
+  iOS exports) fail validation. The upload endpoint swallows the validation
+  exception and returns 200, so the frontend reports success while the image
+  is never persisted — it appears to "disappear."
+
+hidden_tests: hidden_tests/test_upload_regression.py
+
+hints:
+  - cost_xp: 5
+    text: "When did users first start reporting this? Check when it started, not just what's broken."
+  - cost_xp: 10
+    text: "Look at git log for the upload/validation path specifically, not the whole repo."
+  - cost_xp: 15
+    text: "Compare the validation function before and after the most recent refactor commit."
+  - cost_xp: 20
+    text: "The bug isn't in what gets rejected — it's in what happens after rejection."
+
+review_criteria:
+  - must_fix_case_sensitivity: true
+  - must_add_regression_test: true
+  - must_not_swallow_exception: true
+  - explanation_required: [what_was_broken, why, what_changed, how_verified]

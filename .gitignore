@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+
+bug_hunt.db
+
+# Each scenario's repo/ is a real git repo materialized on demand from its
+# repo.bundle (see scenario_engine/loader.py) -- never tracked directly, since
+# a nested .git would be recorded as an embedded repository rather than files.
+scenarios/*/repo/
