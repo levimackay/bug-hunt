@@ -79,3 +79,13 @@ class ReviewComment(Base):
     body: Mapped[str] = mapped_column(Text)
     resolved: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+
+class PlayerProfile(Base):
+    """Single-row progression state for the one local player (id is always 1)."""
+
+    __tablename__ = "player_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    total_xp: Mapped[int] = mapped_column(Integer, default=0)
+    skill_xp: Mapped[str] = mapped_column(Text, default="{}")

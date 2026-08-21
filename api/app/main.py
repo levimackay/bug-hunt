@@ -9,7 +9,7 @@ from api.app.deps import SCENARIOS_ROOT
 from api.app.scenario_loader import sync_scenarios
 from api.app.scenario_registry import load_registry
 from api.app.routers import exec as exec_router
-from api.app.routers import git, hints, investigations, pr, review, tickets
+from api.app.routers import git, hints, investigations, pr, profile, review, score, tickets
 
 
 @asynccontextmanager
@@ -36,6 +36,8 @@ def create_app() -> FastAPI:
     app.include_router(pr.router, prefix="/api")
     app.include_router(review.router, prefix="/api")
     app.include_router(hints.router, prefix="/api")
+    app.include_router(score.router, prefix="/api")
+    app.include_router(profile.router, prefix="/api")
 
     return app
 

@@ -10,7 +10,9 @@ from api.app import models
 from api.app.db import get_db
 from api.app.deps import get_execution_backend
 from api.app.events import log_event
+from api.app.profile_service import award_xp
 from api.app.scenario_registry import get_scenario
+from api.app.scoring_service import compute_investigation_score
 from scenario_engine.evaluation import run_hidden_tests
 from scenario_engine.investigation import visible_files
 from scenario_engine.review import generate_review_comments
@@ -89,6 +91,11 @@ def submit_investigation(
             "exit_code": hidden_result.exit_code,
         },
     )
+
+    if investigation.status == "resolved":
+        score = compute_investigation_score(db, investigation, scenario)
+        if score is not None:
+            award_xp(db, score.overall, scenario.skills)
 
     return {"pr_id": pr.id, "passed": hidden_result.passed, "status": investigation.status}
 

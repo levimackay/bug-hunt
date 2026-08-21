@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from scenario_engine.schema import Hint, ReviewCriteria, Scenario, SlackMessage, Ticket
+from scenario_engine.schema import Hint, ReviewCriteria, Scenario, Scoring, SlackMessage, Ticket
 
 
 def _ensure_repo_materialized(scenario_dir: Path, repo_path: str) -> None:
@@ -52,6 +52,12 @@ def load_scenario(scenario_dir: Path | str) -> Scenario:
         review_criteria_kwargs.update(item)
     review_criteria = ReviewCriteria(**review_criteria_kwargs)
 
+    scoring_data = data.get("scoring", {})
+    scoring = Scoring(
+        expected_fix_paths=list(scoring_data.get("expected_fix_paths", [])),
+        code_quality_checks=list(scoring_data.get("code_quality_checks", [])),
+    )
+
     return Scenario(
         id=data["id"],
         title=data["title"],
@@ -69,6 +75,7 @@ def load_scenario(scenario_dir: Path | str) -> Scenario:
         hidden_tests=data["hidden_tests"],
         hints=hints,
         review_criteria=review_criteria,
+        scoring=scoring,
         scenario_dir=scenario_dir,
     )
 

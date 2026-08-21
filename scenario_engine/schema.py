@@ -32,6 +32,12 @@ class ReviewCriteria:
 
 
 @dataclass(frozen=True)
+class Scoring:
+    expected_fix_paths: list[str] = field(default_factory=list)
+    code_quality_checks: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class Scenario:
     id: str
     title: str
@@ -49,6 +55,7 @@ class Scenario:
     hidden_tests: str
     hints: list[Hint]
     review_criteria: ReviewCriteria
+    scoring: Scoring
     scenario_dir: Path
 
     @property

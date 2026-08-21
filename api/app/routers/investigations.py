@@ -9,6 +9,7 @@ from api.app.db import get_db
 from api.app.deps import get_execution_backend
 from api.app.events import log_event
 from api.app.scenario_registry import get_scenario
+from api.app.scoring_service import compute_investigation_score
 from scenario_engine.investigation import is_visible_path, visible_files
 from scenario_engine.postmortem import build_postmortem
 from scenario_engine.evaluation import HiddenTestResult
@@ -146,4 +147,9 @@ def get_postmortem(investigation_id: int, db: Session = Depends(get_db)):
             exit_code=0 if investigation.status == "resolved" else 1,
         )
 
-    return build_postmortem(scenario, event_dicts, hidden_result)
+    postmortem = build_postmortem(scenario, event_dicts, hidden_result)
+
+    score = compute_investigation_score(db, investigation, scenario)
+    postmortem["score"] = score.as_dict() if score is not None else None
+
+    return postmortem

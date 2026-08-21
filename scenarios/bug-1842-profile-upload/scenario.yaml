@@ -49,3 +49,7 @@ review_criteria:
   - must_add_regression_test: true
   - must_not_swallow_exception: true
   - explanation_required: [what_was_broken, why, what_changed, how_verified]
+
+scoring:
+  expected_fix_paths: [app/validation.py, app/main.py]
+  code_quality_checks: [must_not_swallow_exception, must_add_regression_test]
