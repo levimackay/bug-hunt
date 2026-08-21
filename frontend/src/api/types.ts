@@ -80,3 +80,24 @@ export interface Hint {
   text: string;
   costXp: number;
 }
+
+export interface Score {
+  rootCause: number;
+  fix: number;
+  testing: number;
+  investigation: number;
+  codeQuality: number;
+  overall: number;
+}
+
+export interface SkillProgress {
+  name: string;
+  xp: number;
+  masteryPct: number;
+}
+
+export interface PlayerProfile {
+  totalXp: number;
+  level: number;
+  skills: SkillProgress[];
+}

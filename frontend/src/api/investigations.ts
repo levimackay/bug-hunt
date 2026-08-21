@@ -1,4 +1,4 @@
-import { getJson, getTextish, postJson, putJson } from "./http";
+import { ApiError, getJson, getTextish, postJson, putJson } from "./http";
 import { normalizeFileTree } from "./files";
 import type {
   CommitSummary,
@@ -8,6 +8,7 @@ import type {
   Hint,
   PrView,
   ReviewComment,
+  Score,
   SubmitPayload,
   SubmitResult,
 } from "./types";
@@ -19,6 +20,14 @@ function str(raw: RawRecord, keys: string[], fallback = ""): string {
     const value = raw[key];
     if (typeof value === "string") return value;
     if (typeof value === "number") return String(value);
+  }
+  return fallback;
+}
+
+function num(raw: RawRecord, keys: string[], fallback = 0): number {
+  for (const key of keys) {
+    const value = raw[key];
+    if (typeof value === "number") return value;
   }
   return fallback;
 }
@@ -146,4 +155,27 @@ export async function revealNextHint(investigationId: string): Promise<Hint> {
     text: str(raw, ["text", "hint"]),
     costXp: Number(raw["cost_xp"] ?? raw["costXp"] ?? 0),
   };
+}
+
+function normalizeScore(raw: RawRecord): Score {
+  return {
+    rootCause: num(raw, ["root_cause", "rootCause"]),
+    fix: num(raw, ["fix"]),
+    testing: num(raw, ["testing"]),
+    investigation: num(raw, ["investigation"]),
+    codeQuality: num(raw, ["code_quality", "codeQuality"]),
+    overall: num(raw, ["overall"]),
+  };
+}
+
+// null means "not resolved yet" (404), distinct from a real fetch error, so
+// callers can render a plain not-scored-yet message instead of an error state.
+export async function fetchScore(investigationId: string): Promise<Score | null> {
+  try {
+    const raw = await getJson<RawRecord>(`/investigations/${investigationId}/score`);
+    return normalizeScore(raw);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
 }

@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { fetchReview } from "../api/investigations";
 import { useAsync } from "../hooks/useAsync";
 import { AsyncBoundary } from "../components/AsyncBoundary";
@@ -34,6 +34,13 @@ export function ReviewView() {
                   </li>
                 ))}
               </ul>
+
+              <Link
+                to={`/investigations/${investigationId}/score`}
+                className="mt-6 inline-block border border-border-strong px-3 py-1.5 font-mono text-xs text-ink hover:border-accent"
+              >
+                View score
+              </Link>
             </div>
           )}
         </AsyncBoundary>

@@ -5,6 +5,8 @@ import { Workspace } from "./pages/Workspace";
 import { Submit } from "./pages/Submit";
 import { PrView } from "./pages/PrView";
 import { ReviewView } from "./pages/ReviewView";
+import { ScoreView } from "./pages/ScoreView";
+import { Profile } from "./pages/Profile";
 
 export function App() {
   return (
@@ -15,6 +17,8 @@ export function App() {
       <Route path="/investigations/:investigationId/submit" element={<Submit />} />
       <Route path="/investigations/:investigationId/pr" element={<PrView />} />
       <Route path="/investigations/:investigationId/review" element={<ReviewView />} />
+      <Route path="/investigations/:investigationId/score" element={<ScoreView />} />
+      <Route path="/profile" element={<Profile />} />
     </Routes>
   );
 }
