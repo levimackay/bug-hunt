@@ -25,9 +25,7 @@ class Hint:
 
 @dataclass(frozen=True)
 class ReviewCriteria:
-    must_fix_case_sensitivity: bool = False
-    must_add_regression_test: bool = False
-    must_not_swallow_exception: bool = False
+    checks: dict[str, bool] = field(default_factory=dict)
     explanation_required: list[str] = field(default_factory=list)
 
 

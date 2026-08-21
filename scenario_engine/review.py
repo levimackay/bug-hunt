@@ -28,7 +28,7 @@ def generate_review_comments(
         comments.append(
             {
                 "author": REVIEWER,
-                "body": "Regression test for the uppercase-extension case passes. Nice work tracking this down.",
+                "body": "The regression test for this case passes now. Nice work tracking this down.",
                 "resolved": True,
             }
         )
@@ -37,8 +37,8 @@ def generate_review_comments(
             {
                 "author": REVIEWER,
                 "body": (
-                    "The hidden regression test still fails. Re-check the extension "
-                    "comparison and how the validation failure is handled."
+                    "The hidden regression test still fails. Take another look at the "
+                    "root cause and how the fix handles it."
                 ),
                 "resolved": False,
             }

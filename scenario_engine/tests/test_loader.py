@@ -22,9 +22,9 @@ def test_hints_are_ordered_by_cost(scenario):
 
 def test_review_criteria_parsed(scenario):
     criteria = scenario.review_criteria
-    assert criteria.must_fix_case_sensitivity is True
-    assert criteria.must_add_regression_test is True
-    assert criteria.must_not_swallow_exception is True
+    assert criteria.checks["must_fix_case_sensitivity"] is True
+    assert criteria.checks["must_add_regression_test"] is True
+    assert criteria.checks["must_not_swallow_exception"] is True
     assert criteria.explanation_required == [
         "what_was_broken",
         "why",
@@ -39,6 +39,8 @@ def test_repo_dir_and_hidden_tests_path_resolve(scenario):
     assert scenario.hidden_tests_path.is_file()
 
 
-def test_load_all_scenarios_discovers_bug_1842():
+def test_load_all_scenarios_discovers_all_scenarios():
     scenarios = load_all_scenarios(SCENARIOS_ROOT)
     assert "bug-1842-profile-upload" in scenarios
+    assert "bug-1794-search-incorrect" in scenarios
+    assert "bug-1831-duplicate-notifications" in scenarios

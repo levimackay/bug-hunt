@@ -50,7 +50,10 @@ def load_scenario(scenario_dir: Path | str) -> Scenario:
     review_criteria_kwargs: dict = {}
     for item in data.get("review_criteria", []):
         review_criteria_kwargs.update(item)
-    review_criteria = ReviewCriteria(**review_criteria_kwargs)
+    explanation_required = list(review_criteria_kwargs.pop("explanation_required", []))
+    review_criteria = ReviewCriteria(
+        checks=review_criteria_kwargs, explanation_required=explanation_required
+    )
 
     scoring_data = data.get("scoring", {})
     scoring = Scoring(
