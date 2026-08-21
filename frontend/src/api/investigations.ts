@@ -34,7 +34,8 @@ export async function createInvestigation(scenarioId: string): Promise<CreateInv
 
 export async function fetchFileTree(investigationId: string): Promise<FileNode[]> {
   const raw = await getJson<unknown>(`/investigations/${investigationId}/files`);
-  return normalizeFileTree(raw);
+  const list = Array.isArray(raw) ? raw : (raw as RawRecord)?.["files"];
+  return normalizeFileTree(list);
 }
 
 export async function fetchFileContent(investigationId: string, path: string): Promise<string> {
@@ -63,7 +64,7 @@ function normalizeCommit(raw: RawRecord): CommitSummary {
   return {
     sha: str(raw, ["sha", "hash", "commit"]),
     author: str(raw, ["author", "author_name"]),
-    message: str(raw, ["message", "summary"]),
+    message: str(raw, ["message", "summary", "subject"]),
     date: str(raw, ["date", "timestamp", "authored_date"]),
   };
 }
