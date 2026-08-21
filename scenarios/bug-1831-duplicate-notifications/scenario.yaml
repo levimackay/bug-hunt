@@ -1,0 +1,56 @@
+id: bug-1831-duplicate-notifications
+title: "Users are getting the same notification multiple times"
+company: Nexus
+severity: Medium
+difficulty: engineer        # intern | junior | engineer | senior | staff
+language: python
+skills: [state-management, debugging, api-design, regression-testing]
+learning_objectives:
+  - Trace a bug through a "refactor for clarity" commit using git log/diff
+  - Recognize a type-mismatch defect in an idempotency/dedup check
+  - Write a regression test that simulates a client retry and would have caught it
+
+ticket:
+  reporter: "Customer Support"
+  body: |
+    Users are getting the same notification two or three times for a single
+    event — e.g. one order confirmation shows up 2-3 times in a row.
+  slack_thread:
+    - author: "Priya Nandakumar (Support)"
+      body: "Seems tied to retries — happens more when the network is flaky client-side."
+    - author: "Marcus Rivera (Staff Eng)"
+      body: "Client does retry POST /notify on timeout. Should be idempotent but maybe isn't."
+
+repo_path: repo/           # relative to scenario dir
+entry_service: notifications-service
+visible_test_command: "pytest tests/"
+
+root_cause: >
+  The refactor in commit a16d914 extracted the "already sent" check into
+  is_duplicate_event(), which normalizes the event_id to a string via
+  _dedup_key() before checking membership in _sent_event_ids. But
+  record_notification() still adds the raw int event_id to that same set, so
+  the set only ever contains ints while the check only ever looks for
+  strings. The `in` check is therefore always False, so a retried request
+  with the same event_id is never recognized as a duplicate and gets sent
+  again.
+
+hidden_tests: hidden_tests/test_notify_regression.py
+
+hints:
+  - cost_xp: 5
+    text: "Support said this correlates with retries — check what a retried request actually looks like, not just the first request."
+  - cost_xp: 10
+    text: "Look at git log for the notify/idempotency path specifically — when did the 'already sent' check change?"
+  - cost_xp: 15
+    text: "Compare how the duplicate check stores and looks up event_id before and after the refactor commit."
+  - cost_xp: 20
+    text: "The event_id doesn't fail to match because it's missing — check whether it's the same type on both sides of the `in` check."
+
+review_criteria:
+  - must_add_regression_test: true
+  - explanation_required: [what_was_broken, why, what_changed, how_verified]
+
+scoring:
+  expected_fix_paths: [app/store.py]
+  code_quality_checks: [must_add_regression_test]
