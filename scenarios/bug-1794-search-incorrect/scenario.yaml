@@ -1,0 +1,59 @@
+id: bug-1794-search-incorrect
+title: "Search results incorrect"
+company: Nexus
+severity: Low
+difficulty: junior       # intern | junior | engineer | senior | staff
+language: python
+skills: [debugging, string-manipulation, regression-testing]
+learning_objectives:
+  - Trace a bug report to a specific commit using git log/diff
+  - Recognize an off-by-one (fencepost) error in a hand-rolled substring scan
+  - Write a regression test that would have caught it
+
+ticket:
+  reporter: "Customer Support"
+  body: |
+    Customers say searching for a product sometimes returns the wrong items
+    or misses obvious matches. One customer searched "cable" and got zero
+    results even though we definitely sell cables.
+  slack_thread:
+    - author: "Devon Okafor (Support)"
+      body: "A few reports the search box is 'broken' — mostly single-word queries."
+    - author: "Sarah Chen (Senior Eng)"
+      body: "We tweaked the ranking/filter logic last sprint, might be related."
+
+repo_path: repo/           # relative to scenario dir
+entry_service: search-service
+visible_test_command: "pytest tests/"
+
+root_cause: >
+  The relevance-ranking refactor in commit 7066bbe replaced the simple
+  substring check ("query in text") with a hand-rolled scan (_find_index)
+  that also computes the match position for scoring. Its loop bound is
+  range(n - m) where it should be range(n - m + 1), so a match that starts
+  at the very last valid position — i.e. the query occurs only as a
+  trailing/suffix match within the combined name+description text, with no
+  earlier occurrence — is never found. Products where the searched term is
+  the last word of the description (like "cable" in a product whose text
+  ends "...durable charging cable") silently drop out of the results
+  entirely, which is why the customer's "cable" search returned nothing.
+
+hidden_tests: hidden_tests/test_search_regression.py
+
+hints:
+  - cost_xp: 5
+    text: "When did this start? Check git log for search.py specifically, not the whole repo."
+  - cost_xp: 10
+    text: "The 'Add search analytics logging' commit is recent, but does it touch anything the search results actually depend on?"
+  - cost_xp: 15
+    text: "Compare the matching logic before and after 'Add relevance ranking to search results' — it stopped using Python's own substring check."
+  - cost_xp: 20
+    text: "Look at the range() bound in the hand-rolled scan. Where in the text does the match need to occur for the loop to miss it?"
+
+review_criteria:
+  - must_add_regression_test: true
+  - explanation_required: [what_was_broken, why, what_changed, how_verified]
+
+scoring:
+  expected_fix_paths: [app/search.py]
+  code_quality_checks: [must_add_regression_test]
