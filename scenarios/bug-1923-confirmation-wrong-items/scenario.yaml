@@ -1,0 +1,77 @@
+id: bug-1923-confirmation-wrong-items
+title: "Order confirmation emails show the wrong item list"
+company: Nexus
+severity: High
+difficulty: engineer       # intern | junior | engineer | senior | staff
+language: python
+skills: [async-python, shared-mutable-state, debugging, regression-testing]
+learning_objectives:
+  - Trace a customer-visible defect to a "refactor for readability" commit using git log/diff
+  - Recognize a fire-and-forget asyncio task whose result is never awaited or used
+  - Explain why module-level mutable state makes a request handler order-dependent
+  - Write a multi-request regression test that would have caught cross-order leakage
+
+ticket:
+  reporter: "Customer Support"
+  body: |
+    Customers are getting order confirmation emails that list the wrong
+    products. One customer ordered filter refills and the confirmation
+    listed a growler and a grinder from somebody else's order. The order
+    number, total and shipping address on the email are all correct, it's
+    only the item list that's wrong. A couple of customers also got a
+    confirmation with no items listed at all.
+
+    This is a privacy problem as well as a support problem, so please treat
+    it as urgent.
+  slack_thread:
+    - author: "Devon Okafor (Support)"
+      body: "Escalating this one. The items in the email don't match the order, but the total does, so the order itself looks fine in admin."
+    - author: "Priya Nandakumar (Support)"
+      body: "Confirmed against three tickets. Every wrong list matches a different customer's recent order, so it is not random junk."
+    - author: "Sarah Chen (Senior Eng)"
+      body: "notify-service is the only thing that touches confirmation bodies. We added a retry counter there last week, could that be double-sending against a stale buffer?"
+    - author: "Marcus Rivera (Staff Eng)"
+      body: "Retry counter is read-only bookkeeping, I'd look further back than that. There was also an email assembly refactor earlier this month."
+
+repo_path: repo/           # relative to scenario dir
+entry_service: notify-service
+visible_test_command: "pytest tests/"
+
+root_cause: >
+  The "Refactor email assembly for readability" commit dc9ec69 replaced the
+  three awaited fetches in build_confirmation_email with a
+  gather_order_context() helper. That helper starts the line-item fetch as a
+  fire-and-forget task (asyncio.create_task(fetch_line_items(order_id))) and
+  never awaits it or uses its return value. It instead reads the item list
+  out of gateway.last_fetched_items(), a module-level buffer that
+  fetch_line_items writes to as a side effect. Nothing yields to the event
+  loop between creating that task and reading the buffer, so the task cannot
+  have run yet and the buffer still holds whatever the previous send left
+  there. The helper reaps outstanding tasks at the start of the next send,
+  which is what puts the previous order's items into the buffer, so every
+  confirmation email after the first lists the previously confirmed order's
+  items and the first one after startup lists no items at all. The order,
+  total and address are correct because those two fetches are still awaited
+  normally.
+
+hidden_tests: hidden_tests/test_confirmation_regression.py
+
+hints:
+  - cost_xp: 5
+    text: "The order number, total and address are right and only the items are wrong. Which of the three backend fetches is handled differently from the other two?"
+  - cost_xp: 10
+    text: "Check git log for app/email.py specifically. The retry counter commit is the most recent thing in this service, but is it on the path that builds the item list?"
+  - cost_xp: 15
+    text: "Read the diff of the email assembly refactor. Follow where the line items the renderer actually uses come from, not where they are fetched."
+  - cost_xp: 20
+    text: "Reproduce it with two sends in a row for two different orders in the same process. What is in gateway's module-level buffer at the moment the second email is rendered?"
+
+review_criteria:
+  - must_await_line_item_fetch: true
+  - must_not_read_shared_module_state: true
+  - must_add_regression_test: true
+  - explanation_required: [what_was_broken, why, what_changed, how_verified]
+
+scoring:
+  expected_fix_paths: [app/email.py]
+  code_quality_checks: [must_await_line_item_fetch, must_not_read_shared_module_state, must_add_regression_test]
