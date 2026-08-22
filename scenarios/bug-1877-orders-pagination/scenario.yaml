@@ -1,0 +1,67 @@
+id: bug-1877-orders-pagination
+title: "Order history page 2 shows duplicate orders"
+company: Nexus
+severity: Medium
+difficulty: junior       # intern | junior | engineer | senior | staff
+language: python
+skills: [debugging, pagination, boundary-conditions, regression-testing]
+learning_objectives:
+  - Trace a bug report to a specific commit using git log/diff
+  - Recognize an off-by-one in a 1-indexed page offset calculation
+  - Reason about slice windows across pages instead of trusting a single page
+  - Write a regression test that pins exact record ids per page
+
+ticket:
+  reporter: "Customer Support"
+  body: |
+    Customers are complaining that their order history is wrong. One says
+    page 2 shows orders she already saw on page 1, another says his most
+    recent orders aren't in the list at all. Nothing errors, the page just
+    shows the wrong orders.
+  slack_thread:
+    - author: "Devon Okafor (Support)"
+      body: "Third ticket this week on order history. Nobody's seeing an error, the list is just wrong."
+    - author: "Sarah Chen (Senior Eng)"
+      body: "Reproduced on my own account: page 1 doesn't start at my newest order, it starts ten orders down. So what people are calling a 'duplicate' is really the whole window sliding — page 1 is showing what page 2 used to show."
+    - author: "Devon Okafor (Support)"
+      body: "The status filter shipped a few days ago and that's on the same endpoint, worth a look?"
+    - author: "Sarah Chen (Senior Eng)"
+      body: "Maybe, but the reports started before that. Whatever it is, it's in the slice, not the filter."
+
+repo_path: repo/           # relative to scenario dir
+entry_service: orders-service
+visible_test_command: "pytest tests/"
+
+root_cause: >
+  The "Simplify order pagination math" refactor in commit f9d50c2 replaced
+  page_bounds(), which computed start as (page - 1) * page_size for a
+  1-indexed page, with a page_offset() helper that returns page * page_size.
+  The -1 was dropped in the rewrite, so every page's slice window is shifted
+  forward by one full page_size: page 1 returns the second page of orders,
+  page 2 returns the third, and the newest page_size orders are unreachable
+  entirely. With 25 orders and the default page size of 10, page 1 serves
+  ORD-2015..ORD-2006 instead of ORD-2025..ORD-2016, page 3 comes back empty,
+  and only 15 of the account's 25 orders can be viewed at all. The visible
+  suite never caught it because every test asserts on page shape (length,
+  echoed metadata, field names) rather than on which orders came back.
+
+hidden_tests: hidden_tests/test_orders_pagination_regression.py
+
+hints:
+  - cost_xp: 5
+    text: "Nothing is erroring, so start from the data, not the stack trace. What does page 1 actually return, and is it what you'd expect for an account with 25 orders?"
+  - cost_xp: 10
+    text: "Run git log against the pagination path specifically. Two commits touch the orders endpoint — which one is older than the first customer report?"
+  - cost_xp: 15
+    text: "Diff 'Simplify order pagination math'. It replaced a helper that returned both slice bounds with one that returns only the start."
+  - cost_xp: 20
+    text: "Pages are 1-indexed but the offset helper multiplies the page number straight through. Work out the start index by hand for page 1 and compare it to the first item in the list."
+
+review_criteria:
+  - must_fix_pagination_offset: true
+  - must_add_regression_test: true
+  - explanation_required: [what_was_broken, why, what_changed, how_verified]
+
+scoring:
+  expected_fix_paths: [app/pagination.py]
+  code_quality_checks: [must_fix_pagination_offset, must_add_regression_test]
