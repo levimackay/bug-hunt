@@ -1,0 +1,69 @@
+id: bug-1912-catalog-stale-price
+title: "Customers see stale prices after a price update"
+company: Nexus
+severity: High
+difficulty: engineer        # intern | junior | engineer | senior | staff
+language: python
+skills: [caching, debugging, api-design, regression-testing]
+learning_objectives:
+  - Narrow a bug to the subset of inputs that reproduce it before reading any code
+  - Recognize a cache-key mismatch between a write path and a read path
+  - Write a regression test that exercises write-then-read, not just read
+
+ticket:
+  reporter: "Customer Support"
+  body: |
+    Merchandising updated pricing on Monday and some products are still
+    showing the old price on the storefront. The admin tool shows the new
+    price, so the update definitely saved — customers just never see it.
+    It doesn't affect everything: a few products picked up the new price
+    immediately, the rest are still stuck on the old one days later.
+  slack_thread:
+    - author: "Devon Okafor (Support)"
+      body: "Three tickets this morning, all about the braided cable. Admin shows $19.99, the product page still says $24.50."
+    - author: "Priya Nandakumar (Support)"
+      body: "Confirmed on my end too. Some SKUs update fine though, so it's not every product."
+    - author: "Sarah Chen (Senior Eng)"
+      body: "Restarting the service clears it, which smells like cache rather than the database."
+    - author: "Marcus Rivera (Staff Eng)"
+      body: "We landed the category cache work on catalog-service a couple of weeks back. Worth diffing that before we blame the CDN."
+
+repo_path: repo/           # relative to scenario dir
+entry_service: catalog-service
+visible_test_command: "pytest tests/"
+
+root_cause: >
+  Commit 2bf97fa ("Add per-category price cache for faster catalog browsing")
+  introduced normalize_key_part() for the new category keys and, in the same
+  pass, replaced the PUT handler's direct drop_cached(product_cache_key(...))
+  call with a new invalidate_product_price() helper that rebuilds the key
+  inline as f"price:{normalize_key_part(product_id)}" — lowercased. The read
+  path in GET /products/{id} still keys the cache with product_cache_key(),
+  which uppercases. For legacy numeric ids like 4471 the two forms are
+  identical, so those products invalidate correctly and the visible tests
+  pass. For SKU-format ids like NX-4471-BLK the write path deletes
+  "price:nx-4471-blk" while the read path only ever reads "price:NX-4471-BLK",
+  so the update clears a key nothing reads and the stale price stays cached
+  until the process restarts.
+
+hidden_tests: hidden_tests/test_catalog_price_regression.py
+
+hints:
+  - cost_xp: 5
+    text: "Support said it only affects some products. Find out what the affected ones have in common before reading any code — the answer is in the product ids."
+  - cost_xp: 10
+    text: "Restarting clears it, so the canonical store is fine and the cache is holding a value nobody is clearing. Follow the write path: what exactly does the price update delete?"
+  - cost_xp: 15
+    text: "Diff the commit that added the category cache and watch what happened to the invalidation call in the PUT handler."
+  - cost_xp: 20
+    text: "Write the cache key the GET path builds and the cache key the invalidation builds for the same product id, side by side, for an id containing letters."
+
+review_criteria:
+  - must_align_cache_key_builders: true
+  - must_not_disable_caching: true
+  - must_add_regression_test: true
+  - explanation_required: [what_was_broken, why, what_changed, how_verified]
+
+scoring:
+  expected_fix_paths: [app/cache.py]
+  code_quality_checks: [must_align_cache_key_builders, must_not_disable_caching, must_add_regression_test]
