@@ -1,0 +1,66 @@
+id: bug-1901-guest-checkout-crash
+title: "Guest checkout crashes on the order summary"
+company: Nexus
+severity: High
+difficulty: intern        # intern | junior | engineer | senior | staff
+language: python
+skills: [defensive-programming, debugging, null-safety, regression-testing]
+learning_objectives:
+  - Read a 500-error report back to the commit that introduced it using git log/diff
+  - Recognize an unguarded attribute access on a value that is legitimately None
+  - Tell the difference between a failing case and a case the test suite never covers
+  - Write a regression test for the uncovered case that would have caught it
+
+ticket:
+  reporter: "Customer Support"
+  body: |
+    Checkout is crashing for some customers with a 500 error. It seems random
+    — plenty of people are getting through fine, but the ones who hit it can't
+    complete an order at all. They see the cart, hit continue, and the order
+    summary page errors out.
+  slack_thread:
+    - author: "Devon Okafor (Support)"
+      body: "Handful of tickets this week, all stuck on the order summary step. No pattern I can see, some of them retried twice and got the same error."
+    - author: "Tomas Lindqvist (Backend Eng)"
+      body: "Payment gateway had elevated latency Tuesday, could be timeouts bubbling up as 500s. Checking the gateway dashboard."
+    - author: "Tomas Lindqvist (Backend Eng)"
+      body: "Gateway looks clean actually, and we never even reach it — this is failing while building the summary, before payment."
+    - author: "Sarah Chen (Senior Eng)"
+      body: "checkout-service has had two commits land recently, the loyalty discount work and a logging change. Worth diffing both against when support first saw this."
+
+repo_path: repo/           # relative to scenario dir
+entry_service: checkout-service
+visible_test_command: "pytest tests/"
+
+root_cause: >
+  The loyalty discount added in commit 83b4188 reads
+  order.customer.membership_tier.discount_pct directly when building the order
+  summary. Guest checkouts have no account, so get_customer() builds a
+  throwaway Customer whose membership_tier is None, and that attribute access
+  raises AttributeError — the endpoint 500s instead of simply skipping a
+  discount the guest was never entitled to. It is not random: it is every
+  guest checkout and only guest checkouts. The visible suite never caught it
+  because every test order is built from a seeded customer in CUSTOMERS, and
+  all of those have a membership tier.
+
+hidden_tests: hidden_tests/test_guest_checkout_regression.py
+
+hints:
+  - cost_xp: 5
+    text: "Support says it looks random, but a 500 is deterministic. What is different about the customers who hit it versus the ones who don't?"
+  - cost_xp: 10
+    text: "Read the traceback, not the ticket. Which module raises, and which commit last touched that module?"
+  - cost_xp: 15
+    text: "Look at what every order in tests/ has in common. Is there a kind of customer the suite never builds an order for?"
+  - cost_xp: 20
+    text: "The discount calculation walks customer -> membership_tier -> discount_pct. Check what membership_tier actually is when nobody is logged in."
+
+review_criteria:
+  - must_guard_missing_membership_tier: true
+  - must_preserve_member_discounts: true
+  - must_add_regression_test: true
+  - explanation_required: [what_was_broken, why, what_changed, how_verified]
+
+scoring:
+  expected_fix_paths: [app/pricing.py]
+  code_quality_checks: [must_guard_missing_membership_tier, must_preserve_member_discounts, must_add_regression_test]
