@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from api.app import models
 from api.app.db import get_db
-from api.app.deps import get_execution_backend
+from api.app.deps import get_execution_backend, get_owned_investigation
 from api.app.events import log_event
 from sandbox.base import ALLOWED_COMMANDS, ExecutionBackend
 
@@ -19,15 +19,11 @@ class ExecRequest(BaseModel):
 
 @router.post("/{investigation_id}/exec")
 def run_exec(
-    investigation_id: int,
     body: ExecRequest,
+    investigation: models.Investigation = Depends(get_owned_investigation),
     db: Session = Depends(get_db),
     backend: ExecutionBackend = Depends(get_execution_backend),
 ):
-    investigation = db.get(models.Investigation, investigation_id)
-    if investigation is None:
-        raise HTTPException(status_code=404, detail="investigation not found")
-
     # Allowlist enforced here, before anything reaches the sandbox, and again
     # defensively inside the backend implementation itself.
     if not body.argv or body.argv[0] not in ALLOWED_COMMANDS:

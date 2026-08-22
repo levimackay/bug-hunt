@@ -1,20 +1,20 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from api.app import models
 from api.app.db import get_db
+from api.app.deps import get_owned_investigation
 
 router = APIRouter(prefix="/investigations", tags=["review"])
 
 
 @router.get("/{investigation_id}/review")
-def get_review(investigation_id: int, db: Session = Depends(get_db)):
-    investigation = db.get(models.Investigation, investigation_id)
-    if investigation is None:
-        raise HTTPException(status_code=404, detail="investigation not found")
-
+def get_review(
+    investigation: models.Investigation = Depends(get_owned_investigation),
+    db: Session = Depends(get_db),
+):
     comments = (
         db.query(models.ReviewComment)
         .filter(models.ReviewComment.investigation_id == investigation.id)

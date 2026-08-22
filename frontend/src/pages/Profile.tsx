@@ -1,20 +1,8 @@
 import { fetchProfile } from "../api/profile";
 import { useAsync } from "../hooks/useAsync";
 import { AsyncBoundary } from "../components/AsyncBoundary";
+import { SkillBar } from "../components/SkillBar";
 import { TopBar } from "../components/TopBar";
-
-function SkillBar({ name, masteryPct }: { name: string; masteryPct: number }) {
-  const pct = Math.max(0, Math.min(100, masteryPct));
-  return (
-    <div className="flex items-center gap-3">
-      <span className="w-40 shrink-0 truncate text-sm text-ink-dim">{name}</span>
-      <div className="h-1.5 flex-1 bg-elevated">
-        <div className="h-full bg-accent" style={{ width: `${pct}%` }} />
-      </div>
-      <span className="w-10 shrink-0 text-right font-mono text-xs text-ink">{pct}%</span>
-    </div>
-  );
-}
 
 export function Profile() {
   const state = useAsync(fetchProfile, []);

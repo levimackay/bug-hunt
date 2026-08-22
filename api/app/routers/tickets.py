@@ -7,37 +7,58 @@ from sqlalchemy.orm import Session
 
 from api.app import models
 from api.app.db import get_db
+from api.app.deps import get_current_user
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 
 
-def _latest_status(db: Session, scenario_id: str) -> str:
-    investigation = (
+def _latest_investigation(
+    db: Session, scenario_id: str, user_id: int
+) -> models.Investigation | None:
+    return (
         db.query(models.Investigation)
-        .filter(models.Investigation.scenario_id == scenario_id)
-        .order_by(models.Investigation.started_at.desc())
+        .filter(
+            models.Investigation.scenario_id == scenario_id,
+            models.Investigation.user_id == user_id,
+        )
+        .order_by(models.Investigation.started_at.desc(), models.Investigation.id.desc())
         .first()
     )
+
+
+def _latest_status(db: Session, scenario_id: str, user_id: int) -> str:
+    investigation = _latest_investigation(db, scenario_id, user_id)
     return investigation.status if investigation is not None else "not_started"
 
 
 @router.get("")
-def list_tickets(db: Session = Depends(get_db)):
+def list_tickets(
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
     scenarios = db.query(models.Scenario).all()
-    return [
-        {
-            "id": s.id,
-            "title": s.title,
-            "severity": s.severity,
-            "difficulty": s.difficulty,
-            "status": _latest_status(db, s.id),
-        }
-        for s in scenarios
-    ]
+    result = []
+    for s in scenarios:
+        investigation = _latest_investigation(db, s.id, user.id)
+        result.append(
+            {
+                "id": s.id,
+                "title": s.title,
+                "severity": s.severity,
+                "difficulty": s.difficulty,
+                "status": investigation.status if investigation is not None else "not_started",
+                "investigation_id": investigation.id if investigation is not None else None,
+            }
+        )
+    return result
 
 
 @router.get("/{scenario_id}")
-def get_ticket(scenario_id: str, db: Session = Depends(get_db)):
+def get_ticket(
+    scenario_id: str,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
     scenario = db.get(models.Scenario, scenario_id)
     if scenario is None:
         raise HTTPException(status_code=404, detail="ticket not found")
@@ -56,5 +77,5 @@ def get_ticket(scenario_id: str, db: Session = Depends(get_db)):
             "slack_thread": metadata["slack_thread"],
         },
         "entry_service": scenario.entry_service,
-        "status": _latest_status(db, scenario.id),
+        "status": _latest_status(db, scenario.id, user.id),
     }

@@ -32,10 +32,35 @@ class Scenario(Base):
     metadata_json: Mapped[str] = mapped_column(Text)
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+
+class Session(Base):
+    """Server-side bearer session. Deleting the row revokes the token.
+
+    Stores only a SHA-256 digest of the bearer token, never the raw value --
+    a DB read (backup, dump, injection) can't be replayed as a live session.
+    """
+
+    __tablename__ = "sessions"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+
+
 class Investigation(Base):
     __tablename__ = "investigations"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
     scenario_id: Mapped[str] = mapped_column(String(128), ForeignKey("scenarios.id"))
     status: Mapped[str] = mapped_column(String(32), default="investigating")
     sandbox_workspace_id: Mapped[str] = mapped_column(String(255))
@@ -82,10 +107,10 @@ class ReviewComment(Base):
 
 
 class PlayerProfile(Base):
-    """Single-row progression state for the one local player (id is always 1)."""
+    """Progression state, one row per user."""
 
     __tablename__ = "player_profiles"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), primary_key=True)
     total_xp: Mapped[int] = mapped_column(Integer, default=0)
     skill_xp: Mapped[str] = mapped_column(Text, default="{}")

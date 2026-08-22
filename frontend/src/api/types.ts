@@ -1,4 +1,11 @@
-export type TicketStatus = "not_started" | "in_progress" | "resolved" | (string & {});
+export type TicketStatus =
+  | "not_started"
+  | "investigating"
+  | "in_progress"
+  | "submitted"
+  | "in_review"
+  | "resolved"
+  | (string & {});
 
 export interface TicketSummary {
   id: string;
@@ -6,6 +13,12 @@ export interface TicketSummary {
   severity: string;
   difficulty: string;
   status: TicketStatus;
+  investigationId?: string;
+}
+
+export interface AuthSession {
+  token: string;
+  username: string;
 }
 
 export interface SlackMessage {

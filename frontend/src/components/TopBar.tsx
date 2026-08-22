@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
 import { fetchProfile } from "../api/profile";
 import { useAsync } from "../hooks/useAsync";
+import { useAuth } from "../auth/useAuth";
 
 interface TopBarProps {
   crumbs?: ReactNode;
@@ -9,6 +10,7 @@ interface TopBarProps {
 
 export function TopBar({ crumbs }: TopBarProps) {
   const profileState = useAsync(fetchProfile, []);
+  const { username, logout } = useAuth();
 
   return (
     <header className="flex h-11 shrink-0 items-center gap-3 border-b border-border bg-surface px-4">
@@ -18,7 +20,9 @@ export function TopBar({ crumbs }: TopBarProps) {
       {crumbs && (
         <>
           <span className="text-ink-faint">/</span>
-          <div className="flex items-center gap-2 truncate text-[13px] text-ink-dim">{crumbs}</div>
+          <div className="flex min-w-0 items-center gap-2 truncate text-[13px] text-ink-dim">
+            {crumbs}
+          </div>
         </>
       )}
       <Link
@@ -35,6 +39,17 @@ export function TopBar({ crumbs }: TopBarProps) {
           <span className="text-ink-faint">Lvl —</span>
         )}
       </Link>
+      <span className="hidden h-4 w-px shrink-0 bg-border sm:block" />
+      <span className="hidden max-w-32 shrink-0 truncate font-mono text-xs text-ink sm:block" title={username}>
+        {username || "—"}
+      </span>
+      <button
+        type="button"
+        onClick={() => void logout()}
+        className="shrink-0 border border-border px-2 py-0.5 font-mono text-[11px] uppercase tracking-wide text-ink-dim hover:border-border-strong hover:text-ink"
+      >
+        Log out
+      </button>
     </header>
   );
 }

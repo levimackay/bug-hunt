@@ -6,7 +6,7 @@ interface PillProps {
 export function Pill({ label, color }: PillProps) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-sm border border-border px-2 py-0.5 font-mono text-[11px] uppercase tracking-wide text-ink-dim"
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm border border-border px-2 py-0.5 font-mono text-[11px] uppercase tracking-wide text-ink-dim"
     >
       <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
       {label}
@@ -28,13 +28,19 @@ export function SeverityPill({ severity }: { severity: string }) {
 
 const STATUS_COLOR: Record<string, string> = {
   not_started: "var(--color-status-not-started)",
+  investigating: "var(--color-status-in-progress)",
   in_progress: "var(--color-status-in-progress)",
+  submitted: "var(--color-status-in-progress)",
+  in_review: "var(--color-status-in-progress)",
   resolved: "var(--color-status-resolved)",
 };
 
 const STATUS_LABEL: Record<string, string> = {
   not_started: "Not started",
+  investigating: "Investigating",
   in_progress: "In progress",
+  submitted: "Submitted",
+  in_review: "In review",
   resolved: "Resolved",
 };
 
