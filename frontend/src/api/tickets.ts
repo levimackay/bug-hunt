@@ -12,12 +12,14 @@ function str(raw: RawRecord, keys: string[], fallback = ""): string {
 }
 
 function normalizeSummary(raw: RawRecord): TicketSummary {
+  const investigationId = str(raw, ["investigation_id", "investigationId"]);
   return {
     id: str(raw, ["id", "scenario_id"]),
     title: str(raw, ["title"]),
     severity: str(raw, ["severity"]),
     difficulty: str(raw, ["difficulty"]),
     status: str(raw, ["status"], "not_started"),
+    investigationId: investigationId || undefined,
   };
 }
 
