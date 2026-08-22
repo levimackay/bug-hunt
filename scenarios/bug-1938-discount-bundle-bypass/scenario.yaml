@@ -1,0 +1,67 @@
+id: bug-1938-discount-bundle-bypass
+title: "Expired discount codes are being accepted on bundle orders"
+company: Nexus
+severity: High
+difficulty: engineer        # intern | junior | engineer | senior | staff
+language: python
+skills: [data-validation, debugging, api-design, regression-testing]
+learning_objectives:
+  - Trace a revenue-impacting bug to the feature commit that introduced it
+  - Recognize when a type guard narrows validation that should apply universally
+  - Write a regression test that covers a newly added code path, not just the old one
+
+ticket:
+  reporter: "Customer Support"
+  body: |
+    Finance flagged that promo codes we retired last year are still coming
+    back discounted on some orders. We checked three of them — BLACKFRIDAY24
+    expired in November and it's still taking 25% off. It doesn't happen on
+    every order, only some of them, and the customers aren't doing anything
+    unusual. Can someone look before the next promo cycle?
+  slack_thread:
+    - author: "Devon Okafor (Support)"
+      body: "Three tickets this week, all people saying an old code 'still worked'. Not complaining, obviously."
+    - author: "Aisha Bello (Finance)"
+      body: "I pulled the orders — every one of them is a multi-item order. Standard single-item orders look clean."
+    - author: "Marcus Rivera (Staff Eng)"
+      body: "Could be the codes themselves — maybe someone re-enabled them in the promo table by mistake?"
+    - author: "Aisha Bello (Finance)"
+      body: "Checked, the expiry dates in the table are untouched. Same code rejects fine on a normal order."
+
+repo_path: repo/           # relative to scenario dir
+entry_service: pricing-service
+visible_test_command: "pytest tests/"
+
+root_cause: >
+  The bundle-order feature in commit 909df19 threaded the order into
+  validate_discount_code() and added an early-return guard
+  (if order.type != "standard": return discount) above the existing checks.
+  Every discount rule — the code-exists check, the expiry check, and the
+  redemption-limit check — now runs only for standard orders. Bundle orders
+  skip all three and get whatever DISCOUNT_CODES happens to hold for that
+  string, so an expired or fully redeemed code is applied without error, and
+  an unrecognized code silently prices as no discount instead of a 400. The
+  guard reads like a deliberate "bundles are priced differently" decision,
+  but discount eligibility was never meant to vary by order type — only the
+  subtotal calculation was.
+
+hidden_tests: hidden_tests/test_discount_bundle_regression.py
+
+hints:
+  - cost_xp: 5
+    text: "Finance narrowed it down for you: the bad orders are all multi-item, and the same code is rejected correctly on a normal one. What differs between those two requests?"
+  - cost_xp: 10
+    text: "Two commits touch bundle orders. Read both diffs — one adds a pricing path, one adds shipping. Only one of them is anywhere near the discount rules."
+  - cost_xp: 15
+    text: "Follow the discount code from the endpoint down to where it's checked. Count how many of the checks actually execute for a bundle order."
+  - cost_xp: 20
+    text: "Look at the top of validate_discount_code(). Something returns before the expiry and redemption-limit checks are ever reached — and it's keyed on order type."
+
+review_criteria:
+  - must_validate_all_order_types: true
+  - must_add_regression_test: true
+  - explanation_required: [what_was_broken, why, what_changed, how_verified]
+
+scoring:
+  expected_fix_paths: [app/discounts.py]
+  code_quality_checks: [must_validate_all_order_types, must_add_regression_test]
