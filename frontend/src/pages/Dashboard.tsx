@@ -207,7 +207,16 @@ export function Dashboard() {
                                 <tr
                                   key={ticket.id}
                                   onClick={() => navigate(ticketHref(ticket))}
-                                  className="cursor-pointer border-b border-border/60 last:border-b-0 hover:bg-elevated"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      navigate(ticketHref(ticket));
+                                    }
+                                  }}
+                                  tabIndex={0}
+                                  role="link"
+                                  aria-label={`${ticket.title} (${ticket.id})`}
+                                  className="cursor-pointer border-b border-border/60 last:border-b-0 hover:bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
                                 >
                                   <td className="w-20 whitespace-nowrap px-3 py-2.5 font-mono text-xs text-ink-faint">
                                     {ticketRef(ticket.id)}

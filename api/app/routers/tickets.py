@@ -12,8 +12,10 @@ from api.app.deps import get_current_user
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 
 
-def _latest_status(db: Session, scenario_id: str, user_id: int) -> str:
-    investigation = (
+def _latest_investigation(
+    db: Session, scenario_id: str, user_id: int
+) -> models.Investigation | None:
+    return (
         db.query(models.Investigation)
         .filter(
             models.Investigation.scenario_id == scenario_id,
@@ -22,6 +24,10 @@ def _latest_status(db: Session, scenario_id: str, user_id: int) -> str:
         .order_by(models.Investigation.started_at.desc(), models.Investigation.id.desc())
         .first()
     )
+
+
+def _latest_status(db: Session, scenario_id: str, user_id: int) -> str:
+    investigation = _latest_investigation(db, scenario_id, user_id)
     return investigation.status if investigation is not None else "not_started"
 
 
@@ -31,16 +37,20 @@ def list_tickets(
     user: models.User = Depends(get_current_user),
 ):
     scenarios = db.query(models.Scenario).all()
-    return [
-        {
-            "id": s.id,
-            "title": s.title,
-            "severity": s.severity,
-            "difficulty": s.difficulty,
-            "status": _latest_status(db, s.id, user.id),
-        }
-        for s in scenarios
-    ]
+    result = []
+    for s in scenarios:
+        investigation = _latest_investigation(db, s.id, user.id)
+        result.append(
+            {
+                "id": s.id,
+                "title": s.title,
+                "severity": s.severity,
+                "difficulty": s.difficulty,
+                "status": investigation.status if investigation is not None else "not_started",
+                "investigation_id": investigation.id if investigation is not None else None,
+            }
+        )
+    return result
 
 
 @router.get("/{scenario_id}")
