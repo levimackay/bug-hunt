@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError } from "../api/http";
 import { fetchMe, loginUser, logoutUser, registerUser } from "../api/auth";
@@ -19,8 +19,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
   const [username, setUsername] = useState(() => getStoredUsername() ?? "");
 
+  // Bumped on every session transition (login/register/logout/forced-out) so
+  // a bootstrap fetchMe() that was already in flight for the previous session
+  // can tell its result is stale and skip applying it.
+  const sessionGeneration = useRef(0);
+
   useEffect(() => {
     setUnauthorizedHandler(() => {
+      sessionGeneration.current += 1;
       setStatus("anonymous");
       setUsername("");
       navigate("/login", { replace: true });
@@ -30,16 +36,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!getToken()) return;
+    const generationAtStart = sessionGeneration.current;
     let cancelled = false;
     fetchMe()
       .then((me) => {
-        if (cancelled) return;
+        if (cancelled || sessionGeneration.current !== generationAtStart) return;
         setUsername(me);
         rememberUsername(me);
         setStatus("authenticated");
       })
       .catch((error: unknown) => {
-        if (cancelled) return;
+        if (cancelled || sessionGeneration.current !== generationAtStart) return;
         // A 401 has already cleared the session and redirected; anything else
         // (server down, network blip) shouldn't sign a valid session out.
         if (error instanceof ApiError && error.status === 401) return;
@@ -52,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (name: string, password: string) => {
     const session = await loginUser(name, password);
+    sessionGeneration.current += 1;
     setSession(session.token, session.username);
     setUsername(session.username);
     setStatus("authenticated");
@@ -59,12 +67,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(async (name: string, password: string) => {
     const session = await registerUser(name, password);
+    sessionGeneration.current += 1;
     setSession(session.token, session.username);
     setUsername(session.username);
     setStatus("authenticated");
   }, []);
 
   const logout = useCallback(async () => {
+    sessionGeneration.current += 1;
     try {
       await logoutUser();
     } catch {

@@ -42,11 +42,15 @@ class User(Base):
 
 
 class Session(Base):
-    """Server-side bearer session. Deleting the row revokes the token."""
+    """Server-side bearer session. Deleting the row revokes the token.
+
+    Stores only a SHA-256 digest of the bearer token, never the raw value --
+    a DB read (backup, dump, injection) can't be replayed as a live session.
+    """
 
     __tablename__ = "sessions"
 
-    token: Mapped[str] = mapped_column(String(64), primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime)

@@ -91,7 +91,7 @@ recommended next ticket).
 Redesign `frontend/src/pages/Dashboard.tsx` into a real engineering homepage,
 in the spirit of (not a literal copy of) this shape from the product brief:
 
-```
+```text
 GOOD MORNING, {USERNAME}
 NEXUS ENGINEERING
 

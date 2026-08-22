@@ -9,7 +9,8 @@ export function RequireAuth() {
     return <div className="p-6 font-mono text-sm text-ink-faint">loading…</div>;
   }
   if (status === "anonymous") {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    const from = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to="/login" replace state={{ from }} />;
   }
   return <Outlet />;
 }

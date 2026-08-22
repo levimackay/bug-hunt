@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from api.app import models
+from api.app import auth_service, models
 from api.app.db import SessionLocal
 from api.tests.conftest import TEST_USERNAME
 from api.tests.test_lifecycle import (
@@ -171,7 +171,7 @@ def test_expired_token_is_rejected_and_discarded(client):
 
     db = SessionLocal()
     try:
-        session = db.get(models.Session, token)
+        session = db.get(models.Session, auth_service._hash_token(token))
         session.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
         db.commit()
     finally:

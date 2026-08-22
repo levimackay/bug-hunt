@@ -54,8 +54,8 @@ def register(body: CredentialsRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="username already taken") from exc
     db.refresh(user)
 
-    session = create_session(db, user)
-    return {"token": session.token, "username": user.username}
+    token = create_session(db, user)
+    return {"token": token, "username": user.username}
 
 
 @router.post("/login")
@@ -68,8 +68,8 @@ def login(body: CredentialsRequest, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    session = create_session(db, user)
-    return {"token": session.token, "username": user.username}
+    token = create_session(db, user)
+    return {"token": token, "username": user.username}
 
 
 @router.post("/logout")

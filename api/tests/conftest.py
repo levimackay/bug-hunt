@@ -61,7 +61,7 @@ def client(anon_client: TestClient):
 @pytest.fixture()
 def other_client(client: TestClient):
     """A second authenticated user against the same already-started app."""
-    second = TestClient(client.app)
-    token = register_and_login(second, "otheruser", TEST_PASSWORD)
-    second.headers["Authorization"] = f"Bearer {token}"
-    return second
+    with TestClient(client.app) as second:
+        token = register_and_login(second, "otheruser", TEST_PASSWORD)
+        second.headers["Authorization"] = f"Bearer {token}"
+        yield second

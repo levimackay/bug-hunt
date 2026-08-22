@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -47,20 +48,29 @@ def authenticate(db: DbSession, username: str, password: str) -> models.User | N
     return user
 
 
-def create_session(db: DbSession, user: models.User) -> models.Session:
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def create_session(db: DbSession, user: models.User) -> str:
+    """Create a session and return the raw bearer token.
+
+    The raw token exists only here and in the HTTP response that carries it
+    back to the client -- only its hash is ever persisted.
+    """
+    token = secrets.token_urlsafe(32)
     session = models.Session(
-        token=secrets.token_urlsafe(32),
+        token_hash=_hash_token(token),
         user_id=user.id,
         expires_at=datetime.now(timezone.utc) + SESSION_TTL,
     )
     db.add(session)
     db.commit()
-    db.refresh(session)
-    return session
+    return token
 
 
 def resolve_session(db: DbSession, token: str) -> models.User | None:
-    session = db.get(models.Session, token)
+    session = db.get(models.Session, _hash_token(token))
     if session is None:
         return None
 
@@ -73,7 +83,7 @@ def resolve_session(db: DbSession, token: str) -> models.User | None:
 
 
 def revoke_session(db: DbSession, token: str) -> None:
-    session = db.get(models.Session, token)
+    session = db.get(models.Session, _hash_token(token))
     if session is not None:
         db.delete(session)
         db.commit()

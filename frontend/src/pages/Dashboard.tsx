@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { fetchTickets } from "../api/tickets";
 import { fetchProfile } from "../api/profile";
 import type { PlayerProfile, TicketSummary } from "../api/types";
@@ -129,7 +129,6 @@ function ProgressPanel({ state }: { state: AsyncState<PlayerProfile> }) {
 }
 
 export function Dashboard() {
-  const navigate = useNavigate();
   const { username } = useAuth();
   const ticketsState = useAsync(fetchTickets, []);
   const profileState = useAsync(fetchProfile, []);
@@ -201,40 +200,29 @@ export function Dashboard() {
                         {queue.length === 0 ? (
                           <p className="px-3 py-4 text-sm text-ink-faint">No tickets available.</p>
                         ) : (
-                          <table className="w-full border-collapse text-left text-sm">
-                            <tbody>
-                              {queue.map((ticket) => (
-                                <tr
-                                  key={ticket.id}
-                                  onClick={() => navigate(ticketHref(ticket))}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter" || e.key === " ") {
-                                      e.preventDefault();
-                                      navigate(ticketHref(ticket));
-                                    }
-                                  }}
-                                  tabIndex={0}
-                                  role="link"
+                          <ul>
+                            {queue.map((ticket) => (
+                              <li key={ticket.id} className="border-b border-border/60 last:border-b-0">
+                                <Link
+                                  to={ticketHref(ticket)}
                                   aria-label={`${ticket.title} (${ticket.id})`}
-                                  className="cursor-pointer border-b border-border/60 last:border-b-0 hover:bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
+                                  className="grid grid-cols-[5rem_1fr_auto] items-center gap-x-3 px-3 py-2.5 text-sm hover:bg-elevated sm:grid-cols-[5rem_1fr_5rem_5rem_auto]"
                                 >
-                                  <td className="w-20 whitespace-nowrap px-3 py-2.5 font-mono text-xs text-ink-faint">
+                                  <span className="whitespace-nowrap font-mono text-xs text-ink-faint">
                                     {ticketRef(ticket.id)}
-                                  </td>
-                                  <td className="px-3 py-2.5 text-ink">{ticket.title}</td>
-                                  <td className="hidden px-3 py-2.5 sm:table-cell">
+                                  </span>
+                                  <span className="min-w-0 truncate text-ink">{ticket.title}</span>
+                                  <span className="hidden sm:block">
                                     <SeverityPill severity={ticket.severity} />
-                                  </td>
-                                  <td className="hidden px-3 py-2.5 font-mono text-xs uppercase text-ink-dim sm:table-cell">
+                                  </span>
+                                  <span className="hidden font-mono text-xs uppercase text-ink-dim sm:block">
                                     {ticket.difficulty}
-                                  </td>
-                                  <td className="px-3 py-2.5">
-                                    <StatusPill status={ticket.status} />
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                                  </span>
+                                  <StatusPill status={ticket.status} />
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
                         )}
                       </Panel>
                     </div>
