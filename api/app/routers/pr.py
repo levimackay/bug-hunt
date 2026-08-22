@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from api.app import models
 from api.app.db import get_db
-from api.app.deps import get_execution_backend
+from api.app.deps import get_execution_backend, get_owned_investigation
 from api.app.events import log_event
 from api.app.profile_service import award_xp
 from api.app.scenario_registry import get_scenario
@@ -26,21 +26,13 @@ class SubmitRequest(BaseModel):
     pr_description: str
 
 
-def _get_investigation(db: Session, investigation_id: int) -> models.Investigation:
-    investigation = db.get(models.Investigation, investigation_id)
-    if investigation is None:
-        raise HTTPException(status_code=404, detail="investigation not found")
-    return investigation
-
-
 @router.post("/{investigation_id}/submit")
 def submit_investigation(
-    investigation_id: int,
     body: SubmitRequest,
+    investigation: models.Investigation = Depends(get_owned_investigation),
     db: Session = Depends(get_db),
     backend: ExecutionBackend = Depends(get_execution_backend),
 ):
-    investigation = _get_investigation(db, investigation_id)
     scenario = get_scenario(investigation.scenario_id)
     if scenario is None:
         raise HTTPException(status_code=404, detail="scenario not found")
@@ -95,19 +87,17 @@ def submit_investigation(
     if investigation.status == "resolved":
         score = compute_investigation_score(db, investigation, scenario)
         if score is not None:
-            award_xp(db, score.overall, scenario.skills)
+            award_xp(db, investigation.user_id, score.overall, scenario.skills)
 
     return {"pr_id": pr.id, "passed": hidden_result.passed, "status": investigation.status}
 
 
 @router.get("/{investigation_id}/pr")
 def get_pr(
-    investigation_id: int,
+    investigation: models.Investigation = Depends(get_owned_investigation),
     db: Session = Depends(get_db),
     backend: ExecutionBackend = Depends(get_execution_backend),
 ):
-    investigation = _get_investigation(db, investigation_id)
-
     pr = (
         db.query(models.PullRequest)
         .filter(models.PullRequest.investigation_id == investigation.id)

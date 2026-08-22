@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from api.app import models
 from api.app.db import get_db
-from api.app.deps import get_execution_backend
+from api.app.deps import get_current_user, get_execution_backend, get_owned_investigation
 from api.app.events import log_event
 from api.app.scenario_registry import get_scenario
 from api.app.scoring_service import compute_investigation_score
@@ -26,17 +26,11 @@ class WriteFileRequest(BaseModel):
     content: str
 
 
-def _get_investigation(db: Session, investigation_id: int) -> models.Investigation:
-    investigation = db.get(models.Investigation, investigation_id)
-    if investigation is None:
-        raise HTTPException(status_code=404, detail="investigation not found")
-    return investigation
-
-
 @router.post("")
 def create_investigation(
     body: CreateInvestigationRequest,
     db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
     backend: ExecutionBackend = Depends(get_execution_backend),
 ):
     scenario = get_scenario(body.scenario_id)
@@ -46,6 +40,7 @@ def create_investigation(
     workspace_id = backend.create_workspace(str(scenario.repo_dir))
 
     investigation = models.Investigation(
+        user_id=user.id,
         scenario_id=scenario.id,
         status="investigating",
         sandbox_workspace_id=workspace_id,
@@ -65,11 +60,10 @@ def create_investigation(
 
 @router.get("/{investigation_id}/files")
 def list_files(
-    investigation_id: int,
+    investigation: models.Investigation = Depends(get_owned_investigation),
     db: Session = Depends(get_db),
     backend: ExecutionBackend = Depends(get_execution_backend),
 ):
-    investigation = _get_investigation(db, investigation_id)
     all_files = backend.list_files(investigation.sandbox_workspace_id)
     files = visible_files(all_files)
 
@@ -80,12 +74,11 @@ def list_files(
 
 @router.get("/{investigation_id}/files/{path:path}")
 def read_file(
-    investigation_id: int,
     path: str,
+    investigation: models.Investigation = Depends(get_owned_investigation),
     db: Session = Depends(get_db),
     backend: ExecutionBackend = Depends(get_execution_backend),
 ):
-    investigation = _get_investigation(db, investigation_id)
     if not is_visible_path(path):
         raise HTTPException(status_code=404, detail="file not found")
 
@@ -101,13 +94,12 @@ def read_file(
 
 @router.put("/{investigation_id}/files/{path:path}")
 def write_file(
-    investigation_id: int,
     path: str,
     body: WriteFileRequest,
+    investigation: models.Investigation = Depends(get_owned_investigation),
     db: Session = Depends(get_db),
     backend: ExecutionBackend = Depends(get_execution_backend),
 ):
-    investigation = _get_investigation(db, investigation_id)
     if not is_visible_path(path):
         raise HTTPException(status_code=400, detail="cannot write to that path")
 
@@ -119,8 +111,10 @@ def write_file(
 
 
 @router.get("/{investigation_id}/postmortem")
-def get_postmortem(investigation_id: int, db: Session = Depends(get_db)):
-    investigation = _get_investigation(db, investigation_id)
+def get_postmortem(
+    investigation: models.Investigation = Depends(get_owned_investigation),
+    db: Session = Depends(get_db),
+):
     scenario = get_scenario(investigation.scenario_id)
     if scenario is None:
         raise HTTPException(status_code=404, detail="scenario not found")

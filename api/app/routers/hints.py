@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from api.app import models
 from api.app.db import get_db
+from api.app.deps import get_owned_investigation
 from api.app.events import log_event
 from api.app.scenario_registry import get_scenario
 from scenario_engine.investigation import next_hint
@@ -13,11 +14,10 @@ router = APIRouter(prefix="/investigations", tags=["hints"])
 
 
 @router.post("/{investigation_id}/hints/next")
-def reveal_next_hint(investigation_id: int, db: Session = Depends(get_db)):
-    investigation = db.get(models.Investigation, investigation_id)
-    if investigation is None:
-        raise HTTPException(status_code=404, detail="investigation not found")
-
+def reveal_next_hint(
+    investigation: models.Investigation = Depends(get_owned_investigation),
+    db: Session = Depends(get_db),
+):
     scenario = get_scenario(investigation.scenario_id)
     if scenario is None:
         raise HTTPException(status_code=404, detail="scenario not found")

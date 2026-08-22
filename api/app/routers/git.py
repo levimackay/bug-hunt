@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from api.app import models
 from api.app.db import get_db
-from api.app.deps import get_execution_backend
+from api.app.deps import get_execution_backend, get_owned_investigation
 from api.app.events import log_event
 from sandbox.base import ExecutionBackend
 
@@ -18,21 +18,12 @@ router = APIRouter(prefix="/investigations", tags=["git"])
 _SHA_RE = re.compile(r"^[0-9a-fA-F]{4,40}$")
 
 
-def _get_investigation(db: Session, investigation_id: int) -> models.Investigation:
-    investigation = db.get(models.Investigation, investigation_id)
-    if investigation is None:
-        raise HTTPException(status_code=404, detail="investigation not found")
-    return investigation
-
-
 @router.get("/{investigation_id}/git/log")
 def git_log(
-    investigation_id: int,
+    investigation: models.Investigation = Depends(get_owned_investigation),
     db: Session = Depends(get_db),
     backend: ExecutionBackend = Depends(get_execution_backend),
 ):
-    investigation = _get_investigation(db, investigation_id)
-
     result = backend.run_command(
         investigation.sandbox_workspace_id,
         ["git", "log", "--pretty=format:%H\x1f%an\x1f%ad\x1f%s", "--date=iso-strict"],
@@ -55,13 +46,11 @@ def git_log(
 
 @router.get("/{investigation_id}/git/diff/{sha}")
 def git_diff(
-    investigation_id: int,
     sha: str,
+    investigation: models.Investigation = Depends(get_owned_investigation),
     db: Session = Depends(get_db),
     backend: ExecutionBackend = Depends(get_execution_backend),
 ):
-    investigation = _get_investigation(db, investigation_id)
-
     if not _SHA_RE.match(sha):
         raise HTTPException(status_code=400, detail="invalid commit sha")
 

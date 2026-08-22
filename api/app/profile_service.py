@@ -7,21 +7,21 @@ from sqlalchemy.orm import Session
 from api.app import models
 from scenario_engine.progression import distribute_skill_xp
 
-PROFILE_ID = 1
 
-
-def get_or_create_profile(db: Session) -> models.PlayerProfile:
-    profile = db.get(models.PlayerProfile, PROFILE_ID)
+def get_or_create_profile(db: Session, user_id: int) -> models.PlayerProfile:
+    profile = db.get(models.PlayerProfile, user_id)
     if profile is None:
-        profile = models.PlayerProfile(id=PROFILE_ID, total_xp=0, skill_xp="{}")
+        profile = models.PlayerProfile(user_id=user_id, total_xp=0, skill_xp="{}")
         db.add(profile)
         db.commit()
         db.refresh(profile)
     return profile
 
 
-def award_xp(db: Session, xp_awarded: int, skills: list[str]) -> models.PlayerProfile:
-    profile = get_or_create_profile(db)
+def award_xp(
+    db: Session, user_id: int, xp_awarded: int, skills: list[str]
+) -> models.PlayerProfile:
+    profile = get_or_create_profile(db, user_id)
     skill_xp: dict[str, int] = json.loads(profile.skill_xp)
 
     profile.total_xp += xp_awarded

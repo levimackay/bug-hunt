@@ -9,7 +9,7 @@ from api.app.deps import SCENARIOS_ROOT
 from api.app.scenario_loader import sync_scenarios
 from api.app.scenario_registry import load_registry
 from api.app.routers import exec as exec_router
-from api.app.routers import git, hints, investigations, pr, profile, review, score, tickets
+from api.app.routers import auth, git, hints, investigations, pr, profile, review, score, tickets
 
 
 @asynccontextmanager
@@ -29,6 +29,7 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(title="Bug Hunt API", lifespan=lifespan)
 
+    app.include_router(auth.router, prefix="/api")
     app.include_router(tickets.router, prefix="/api")
     app.include_router(investigations.router, prefix="/api")
     app.include_router(exec_router.router, prefix="/api")
