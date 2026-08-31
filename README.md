@@ -41,9 +41,12 @@ to practice that skill directly:
 - **Deterministic scoring** — a fixed formula over five axes (root cause,
   fix, testing, investigation process, code quality), not model judgment.
   See `docs/SCORING_AND_SCENARIOS_SPEC.md` for the exact formula.
-- **XP / skill progression** — a single local profile accumulates XP per
+- **XP / skill progression** — each account's profile accumulates XP per
   resolved investigation and per-skill mastery (e.g. `debugging`,
   `input-validation`) tagged on each scenario.
+- **Accounts** — username/password registration and login, sessions backed
+  by a hashed token, and investigations, PRs and profile XP all scoped to
+  the signed-in user.
 
 ## Architecture
 
@@ -58,7 +61,10 @@ bug-hunt/
       scenario_registry.py in-memory registry of loaded Scenario objects
       scoring_service.py   wires scenario_engine scoring into the API
       profile_service.py   wires scenario_engine progression into the API
+      auth_service.py      password hashing, session tokens
+      deps.py              auth dependency, per-user investigation lookup
       routers/
+        auth.py          register, login, logout, /auth/me
         tickets.py      GET /tickets, /tickets/{id}
         investigations.py  create investigation, file tree, file read/write
         exec.py          POST /investigations/{id}/exec (allowlisted commands)
@@ -86,9 +92,14 @@ bug-hunt/
     tests/
       fake_backend.py     in-memory backend, test-only, never used in prod config
   scenarios/
-    bug-1842-profile-upload/
     bug-1794-search-incorrect/
     bug-1831-duplicate-notifications/
+    bug-1842-profile-upload/
+    bug-1877-orders-pagination/
+    bug-1901-guest-checkout-crash/
+    bug-1912-catalog-stale-price/
+    bug-1923-confirmation-wrong-items/
+    bug-1938-discount-bundle-bypass/
       scenario.yaml
       repo.bundle         real git history, cloned into repo/ on demand
       repo/               materialized clone (gitignored, not committed)
@@ -133,7 +144,8 @@ uvicorn api.app.main:app --reload --port 8000
 ```
 
 This creates `bug_hunt.db` (SQLite) on first run and syncs `scenarios/` into
-it. No login step — there's a single implicit local profile.
+it. Register an account through the frontend (or `POST /auth/register`) to
+get a session token; investigations, PRs and XP are scoped to that account.
 
 ### Frontend
 
@@ -152,8 +164,7 @@ The Vite dev server proxies `/api` to `http://localhost:8000` (see
 .venv/bin/python -m pytest -q
 ```
 
-65 tests currently pass, covering `api/tests/`, `scenario_engine/tests/`, and
-`sandbox/tests/`.
+Covers `api/tests/`, `scenario_engine/tests/`, and `sandbox/tests/`.
 
 ## How scenarios are structured
 
@@ -183,12 +194,26 @@ The manifest schema (see `docs/BUILD_SPEC.md` and
   the scoring formula to judge whether the fix touched the right files and
   which review criteria count toward the code-quality axis
 
-Three scenarios exist today: `bug-1842-profile-upload` (intern, a
-case-sensitivity validation bug), `bug-1794-search-incorrect` (junior, an
-off-by-one in a hand-rolled substring scan), and
-`bug-1831-duplicate-notifications` (engineer, a type-mismatch idempotency
-check). Each ships a real, deliberately unrelated third commit as a red
-herring.
+Eight scenarios exist today, each shipping a real, deliberately unrelated
+extra commit as a red herring:
+
+- `bug-1842-profile-upload` (intern) — a case-sensitivity validation bug.
+- `bug-1794-search-incorrect` (junior) — an off-by-one in a hand-rolled
+  substring scan.
+- `bug-1831-duplicate-notifications` (engineer) — a type-mismatch
+  idempotency check.
+- `bug-1877-orders-pagination` (junior) — a dropped `-1` in a pagination
+  refactor that shifts every page's slice window forward by one page.
+- `bug-1901-guest-checkout-crash` (intern) — a loyalty-discount lookup
+  that assumes every order has a customer, so guest checkout 500s.
+- `bug-1912-catalog-stale-price` (engineer) — a price-cache invalidation
+  key that's lowercased while the read path's key is uppercased, so
+  SKU-format ids never get their stale price cleared.
+- `bug-1923-confirmation-wrong-items` (engineer) — a fire-and-forget async
+  task read from a shared buffer before it's run, so confirmation emails
+  carry the previous order's line items.
+- `bug-1938-discount-bundle-bypass` (engineer) — an early-return guard
+  added for bundle orders that skips discount-code validation entirely.
 
 ## Security model
 
@@ -225,9 +250,9 @@ See `SECURITY.md` for how to report a vulnerability.
 
 This is a working prototype, not a finished product:
 
-- 3 scenarios exist (`bug-1842-profile-upload`, `bug-1794-search-incorrect`,
-  `bug-1831-duplicate-notifications`).
-- No authentication — one implicit local profile, no login screen.
+- 8 scenarios exist (listed above).
+- Username/password authentication with hashed session tokens; no password
+  reset or email verification flow yet.
 - No live E2B key wired up in this repo; sandbox execution is implemented
   and tested against a fake backend but not yet exercised against a real
   microVM outside development.
@@ -240,12 +265,11 @@ Pulled directly from the "out of scope" notes in `docs/BUILD_SPEC.md` and
 `docs/SCORING_AND_SCENARIOS_SPEC.md` — this is what's genuinely still
 missing, not a marketing wishlist:
 
-- Authentication / accounts (currently a single implicit local profile)
 - More scenarios — toward a target range of 8-12, including harder
   difficulty tiers (`senior`, `staff`)
 - Richer Jira/Slack/GitHub-style connected chrome beyond the current minimal
   ticket and PR/review views
-- Session/day tracking (e.g. streaks) — deferred until there are accounts
+- Session/day tracking (e.g. streaks)
 - A public landing/marketing page
 - True concurrency/race-condition scenarios — deliberately out of scope for
   now; existing "concurrency-flavored" bugs (e.g.
