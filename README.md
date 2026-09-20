@@ -137,6 +137,9 @@ Copy the environment template and fill in real values as needed:
 cp .env.example .env
 ```
 
+Nothing in the code loads `.env` on its own. Either export the variables in
+your shell or add `--env-file .env` to the `uvicorn` command below.
+
 Run the API:
 
 ```bash
@@ -144,7 +147,7 @@ uvicorn api.app.main:app --reload --port 8000
 ```
 
 This creates `bug_hunt.db` (SQLite) on first run and syncs `scenarios/` into
-it. Register an account through the frontend (or `POST /auth/register`) to
+it. Register an account through the frontend (or `POST /api/auth/register`) to
 get a session token; investigations, PRs and XP are scoped to that account.
 
 ### Frontend
@@ -238,8 +241,9 @@ command a user runs is executed inside an isolated E2B Firecracker microVM via
 
 This requires a real `E2B_API_KEY` to actually run investigations end to
 end. **As of this writing the project is not wired to a live E2B key** —
-without one, `E2BExecutionBackend` fails loudly at startup (per design: it
-never silently falls back to running code unsandboxed on the host). The test
+without one, the first request that needs the sandbox fails loudly. The
+backend is built lazily on first use, so the API itself still starts. Per
+design it never silently falls back to running code unsandboxed on the host. The test
 suite exercises the API and scenario logic against an in-memory
 `FakeExecutionBackend` (`sandbox/tests/fake_backend.py`) instead, which is
 test-only and never reachable from production configuration.
